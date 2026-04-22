@@ -1,7 +1,7 @@
 package edu.test.LotteryResultManager.service.Impl;
 
 import edu.test.LotteryResultManager.entity.LotteryResult;
-import edu.test.LotteryResultManager.repositoy.LotteryResultRepository;
+import edu.test.LotteryResultManager.repositroy.LotteryResultRepository;
 import edu.test.LotteryResultManager.service.LotteryScraperService;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;

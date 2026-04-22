@@ -13,10 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LotteryResult {
-<<<<<<< HEAD
 
-=======
->>>>>>> feature/app-config
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;

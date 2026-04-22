@@ -1,4 +1,4 @@
-package edu.test.LotteryResultManager.repositoy;
+package edu.test.LotteryResultManager.repositroy;
 
 import edu.test.LotteryResultManager.entity.LotteryResult;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +15,7 @@ public interface LotteryResultRepository extends JpaRepository<LotteryResult , I
 
     // Find by draw number
     List<LotteryResult> findByDrawNumber(String drawNumber);
+
+    boolean existsByDrawNumberAndLotteryName(
+            String drawNumber, String lotteryName);
 }
