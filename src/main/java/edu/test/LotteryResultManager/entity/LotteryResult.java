@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class LotteryResult {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(name = "lottery_name", nullable = false)
     private String lotteryName;

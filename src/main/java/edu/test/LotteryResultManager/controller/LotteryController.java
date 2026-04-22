@@ -1,5 +1,7 @@
 package edu.test.LotteryResultManager.controller;
 
+import edu.test.LotteryResultManager.entity.LotteryResult;
+import edu.test.LotteryResultManager.service.LotteryScraperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
