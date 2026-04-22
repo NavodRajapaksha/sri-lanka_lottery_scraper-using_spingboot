@@ -1,3 +1,21 @@
 spring:
   application:
     name: LotteryResultManager
+  datasource:
+    url: jdbc:mysql://13.234.242.165:3306/a1?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: iDevice
+    password: iDevice_123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+server:
+  port: 8080
+
