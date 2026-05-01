@@ -1,13 +1,11 @@
 package edu.test.LotteryResultManager.service.Impl;
 
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.*;
 import edu.test.LotteryResultManager.entity.LotteryResult;
 import edu.test.LotteryResultManager.repositroy.LotteryResultRepository;
 import edu.test.LotteryResultManager.service.LotteryScraperService;
 import lombok.RequiredArgsConstructor;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,20 +18,22 @@ public class LotteryScraperServiceImpl implements LotteryScraperService {
 
     private final LotteryResultRepository lotteryResultRepository;
 
-    private static final String NLB_BASE_URL = "https://www.nlb.lk/results/";
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+    private static final String GOVISETHA_URL =
+            "https://www.nlb.lk/results/govisetha";
+    private static final String JAYODA_URL =
+            "https://www.nlb.lk/results/jayoda";
 
-    // Scrape Govisetha Lottery
+    // Scrape Govisetha
     public List<LotteryResult> scrapeGovisetha() throws IOException {
-        return scrapeLottery("govisetha", "Govisetha");
+        return scrapeLottery(GOVISETHA_URL, "Govisetha");
     }
 
-    // Scrape Jayoda Lottery
+    // Scrape Jayoda
     public List<LotteryResult> scrapeJayoda() throws IOException {
-        return scrapeLottery("jayoda", "Jayoda");
+        return scrapeLottery(JAYODA_URL, "Jayoda");
     }
 
-    // Scrape Both Lotteries
+    // Scrape Both
     public List<LotteryResult> scrapeAll() throws IOException {
         List<LotteryResult> allResults = new ArrayList<>();
         allResults.addAll(scrapeGovisetha());
@@ -42,71 +42,105 @@ public class LotteryScraperServiceImpl implements LotteryScraperService {
     }
 
     // Core Scraping Logic
-    private List<LotteryResult> scrapeLottery(String lotteryPath, String lotteryName) throws IOException {
+    private List<LotteryResult> scrapeLottery(
+            String url, String lotteryName) throws IOException {
         List<LotteryResult> results = new ArrayList<>();
 
-        try {
-            Document doc = Jsoup.connect(NLB_BASE_URL + lotteryPath)
-                    .userAgent(USER_AGENT)
-                    .timeout(10000)
-                    .get();
+        try (WebClient webClient = new WebClient()) {
 
-            // Print HTML to console for debugging
+            // WebClient Settings
+            webClient.getOptions().setJavaScriptEnabled(true);
+            webClient.getOptions().setCssEnabled(false);
+            webClient.getOptions().setDownloadImages(false);
+            webClient.getOptions().setUseInsecureSSL(true);
+            webClient.getOptions().setThrowExceptionOnScriptError(false);
+            webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
+            webClient.getOptions().setTimeout(15000);
+
             System.out.println("=== Scraping: " + lotteryName + " ===");
 
-            // Try to find result table
-            Elements tables = doc.select("table");
+            // Get Page
+            HtmlPage page = webClient.getPage(url);
 
-            for (Element table : tables) {
-                Elements rows = table.select("tr");
+            // Wait for JS
+            webClient.waitForBackgroundJavaScript(3000);
 
-                for (Element row : rows) {
-                    Elements cols = row.select("td");
+            // Get Tables
+            List<HtmlTable> tables = page.getByXPath("//table");
+            System.out.println("Tables found: " + tables.size());
+
+            for (HtmlTable table : tables) {
+                List<HtmlTableRow> rows = table.getRows();
+
+                for (HtmlTableRow row : rows) {
+                    List<HtmlTableCell> cols = row.getCells();
 
                     if (cols.size() >= 2) {
                         LotteryResult result = new LotteryResult();
                         result.setLotteryName(lotteryName);
 
-                        // Extract data based on column count
-                        if (cols.size() >= 4) {
-                            result.setDrawNumber(cols.get(0).text().trim());
-                            result.setDrawDate(cols.get(1).text().trim());
-                            result.setWinningNumbers(cols.get(2).text().trim());
-                            result.setSuperNumber(cols.get(3).text().trim());
-                        } else if (cols.size() >= 3) {
-                            result.setDrawNumber(cols.get(0).text().trim());
-                            result.setDrawDate(cols.get(1).text().trim());
-                            result.setWinningNumbers(cols.get(2).text().trim());
+                        // Col 0 - Draw Number + Date combined
+                        String col0 = cols.get(0)
+                                .asNormalizedText().trim();
+                        String[] col0Lines = col0.split("\n");
+
+                        if (col0Lines.length >= 2) {
+                            // First line = Draw Number
+                            result.setDrawNumber(
+                                    col0Lines[0].trim());
+                            // Second line = Date
+                            result.setDrawDate(
+                                    col0Lines[1].trim());
                         } else {
-                            result.setDrawNumber(cols.get(0).text().trim());
-                            result.setWinningNumbers(cols.get(1).text().trim());
+                            result.setDrawNumber(col0.trim());
                         }
 
-                        // Skip empty rows
-                        if (!result.getDrawNumber().isEmpty()) {
-                            // Save to DB
-                            lotteryResultRepository.save(result);
-                            results.add(result);
+                        // Col 1 - Winning Numbers
+                        result.setWinningNumbers(
+                                cols.get(1).asNormalizedText().trim());
 
-                            // Print to console (Q2 requirement)
-                            System.out.println("Draw: " + result.getDrawNumber()
-                                    + " | Date: " + result.getDrawDate()
-                                    + " | Numbers: " + result.getWinningNumbers());
+                        // Col 2 - Super Number
+                        if (cols.size() >= 3) {
+                            result.setSuperNumber(
+                                    cols.get(2).asNormalizedText().trim());
+                        }
+
+                        // Skip header rows and empty rows
+                        if (result.getDrawNumber() != null
+                                && !result.getDrawNumber().isEmpty()
+                                && !result.getDrawNumber()
+                                .equalsIgnoreCase("draw")
+                                && !result.getDrawNumber()
+                                .equalsIgnoreCase("no")
+                                && !result.getDrawNumber()
+                                .equalsIgnoreCase("#")) {
+
+                            // Duplicate check
+                            if (!lotteryResultRepository
+                                    .existsByDrawNumberAndLotteryName(
+                                            result.getDrawNumber(),
+                                            result.getLotteryName())) {
+
+                                lotteryResultRepository.save(result);
+                                results.add(result);
+
+                                System.out.println(
+                                        "Draw: " + result.getDrawNumber()
+                                                + " | Date: " + result.getDrawDate()
+                                                + " | Numbers: "
+                                                + result.getWinningNumbers());
+                            }
                         }
                     }
                 }
             }
 
-            System.out.println("Total scraped: " + results.size() + " records for " + lotteryName);
-
-        } catch (IOException e) {
-            System.err.println("Error scraping " + lotteryName + ": " + e.getMessage());
-            throw e;
+            System.out.println("Total scraped: "
+                    + results.size() + " records for " + lotteryName);
         }
 
         return results;
     }
-
 
     // Get All from DB
     public List<LotteryResult> getAllResults() {
